@@ -31,8 +31,8 @@ class StudioPilot(unittest.TestCase):
         values.update(changes)
         return client.post("/requests", data=values), values
 
-    def operator(self):
-        client = self.app.test_client()
+    def operator(self, client=None):
+        client = client or self.app.test_client()
         fields = self.fields(client, "/login")
         response = client.post("/login", data=dict(fields, password=self.config["ADMIN_PASSWORD"]))
         self.assertEqual(response.status_code, 303)
@@ -69,6 +69,15 @@ class StudioPilot(unittest.TestCase):
         self.assertIn("STATUS:CONFIRMED", event.text)
         self.assertIn("DTSTART:", event.text)
         self.assertNotIn("artist@example.test", event.text)
+
+        # Two installations both create booking #1; calendar imports must not collide.
+        other = create_app(dict(self.config, DATABASE=str(Path(self.temp.name)/"other.sqlite3"))).test_client()
+        other_receipt, _ = self.submit(other)
+        self.post(self.operator(other), "/requests/1/accept")
+        other_event = other.get(other_receipt.location+"/calendar.ics").text
+        uid = lambda text: re.search(r"^UID:(.+)$", text, re.MULTILINE).group(1)
+        self.assertNotEqual(uid(event.text), uid(other_event))
+        self.assertEqual(uid(event.text), uid(restarted.get(receipt+"/calendar.ics").text))
         self.assertEqual(self.post(op, "/bookings/1/cancel").status_code, 303)
         self.assertIn("Session cancelled", restarted.get(receipt).text)
         self.assertIn("STATUS:CANCELLED", restarted.get(receipt+"/calendar.ics").text)

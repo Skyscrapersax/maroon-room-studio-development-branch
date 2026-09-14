@@ -268,7 +268,7 @@ def create_app(config=None):
                 return render_desk("That time overlaps a confirmed session. This request remains pending.", 409)
             else:
                 booking = conn.execute("INSERT INTO bookings(title,client,contact,notes,starts,ends,created,request_id) VALUES(?,?,?,?,?,?,?,?)",
-                    (f"{row['service']}: {row['project']}", row["client"], row["email"], row["notes"], row["starts"], row["ends"], now(), "studio-request-"+str(item_id)))
+                    (f"{row['service']}: {row['project']}", row["client"], row["email"], row["notes"], row["starts"], row["ends"], now(), "studio-request-"+secrets.token_urlsafe(32)))
                 conn.execute("UPDATE requests SET status='accepted', booking_id=?, decided=? WHERE id=?", (booking.lastrowid, now(), item_id))
                 conn.commit()
                 flash("Session confirmed. Its private status page now offers a calendar download; no email sent.")
