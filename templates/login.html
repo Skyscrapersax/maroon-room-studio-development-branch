@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Studio desk — Maroon Room{% endblock %}
+{% block content %}<section class="narrow login"><p class="eyebrow">STUDIO TEAM</p><h1>Back of house.</h1><p class="lede">Review requests. Keep the calendar in order.</p><form method="post"><input type="hidden" name="csrf" value="{{ session.csrf }}"><label>Studio password<input type="password" name="password" autocomplete="current-password" required autofocus></label><button class="primary full">Open studio desk ↗</button></form><p class="help">This desk is for the studio team. Artists can <a href="{{ url_for('home') }}#session">request a session here</a>.</p></section>{% endblock %}

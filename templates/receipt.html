@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Session status — Maroon Room{% endblock %}
+{% block content %}
+<section class="receipt narrow">
+  <p class="eyebrow">YOUR SESSION REQUEST · {{ item.id }}</p><span class="badge {{ state }}">{{ {'pending':'Awaiting studio review','accepted':'Session confirmed','declined':'Time declined','cancelled':'Session cancelled'}[state] }}</span>
+  <h1>{{ {'pending':'Your idea is in the book.','accepted':'There’s room for your record.','declined':'Let’s find another time.','cancelled':'This session is cancelled.'}[state] }}</h1>
+  <p class="lede">{% if state == 'pending' %}Your request is saved. The time below is not reserved yet. Return here to see the studio’s decision.{% elif state == 'accepted' %}The studio has confirmed this time. Your calendar file is ready. Scope and rates are agreed separately with the studio.{% elif state == 'declined' %}The studio can’t confirm this request. You can send a new request with a different time.{% else %}The calendar has been freed. If you previously imported this session, update your calendar too.{% endif %}</p>
+  <dl class="session-summary"><div><dt>Project</dt><dd>{{ item.project }}</dd></div><div><dt>Session</dt><dd>{{ item.service }} · {{ (item.ends-item.starts)//3600 }} hours</dd></div><div><dt>Start</dt><dd>{{ item.starts|localtime }}</dd></div><div><dt>End</dt><dd>{{ item.ends|localtime }}</dd></div></dl>
+  {% if state in ['accepted', 'cancelled'] %}<a class="button primary" href="{{ url_for('public_calendar', token=item.token) }}">Download {{ 'cancellation' if state == 'cancelled' else 'calendar event' }} (.ics)</a>{% endif %}
+  <p class="private-note"><strong>Bookmark this private page.</strong> Anyone with its link can view this session’s status. Your email and project notes are shown only in the studio desk. No email or invitation has been sent.</p>
+  <div class="actions"><a href="{{ url_for('receipt', token=item.token) }}">Refresh status ↻</a><a href="{{ url_for('home') }}#session">Request another session ↗</a></div>
+</section>
+{% endblock %}

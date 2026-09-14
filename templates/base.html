@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Request a recording, mixing or mastering session at Maroon Room. Studio review comes before confirmation.">
+  <title>{% block title %}Maroon Room — Studio sessions{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='studio.css') }}">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('home') }}"><span class="brand-mark" aria-hidden="true">m.</span><span>MAROON ROOM<small>RECORDING STUDIO</small></span></a>
+    <nav aria-label="Main"><a href="{{ url_for('home') }}#session">Request a session</a><a href="{{ url_for('desk') }}">Studio desk <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main id="main">
+    {% for message in get_flashed_messages() %}<div class="notice" role="status">{{ message }}</div>{% endfor %}
+    {% if error %}<div class="notice error" role="alert"><strong>One thing to fix.</strong> {{ error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer"><span>MAROON ROOM <span class="muted">/ Make space for the work.</span></span><span>{% if contact_email %}<a href="mailto:{{ contact_email }}">Contact the studio</a> · {% endif %}<a href="{{ url_for('privacy') }}">Your information</a> · Pilot edition</span></footer>
+</body>
+</html>
