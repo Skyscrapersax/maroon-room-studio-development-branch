@@ -5,20 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <meta name="description" content="Request a recording, mixing or mastering session at Maroon Room. Studio review comes before confirmation.">
+  <meta name="theme-color" content="#07080b">
   <title>{% block title %}Maroon Room — Studio sessions{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', filename='studio.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header">
-    <a class="brand" href="{{ url_for('home') }}"><span class="brand-mark" aria-hidden="true">m.</span><span>MAROON ROOM<small>RECORDING STUDIO</small></span></a>
-    <nav aria-label="Main"><a href="{{ url_for('home') }}#session">Request a session</a><a href="{{ url_for('desk') }}">Studio desk <span aria-hidden="true">↗</span></a></nav>
+  <div class="ambient" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="scanlines" aria-hidden="true"></div>
+  <header class="site-header glass-bar">
+    <a class="brand" href="{{ url_for('home') }}">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="brand-copy"><strong>MAROON ROOM</strong><small>RECORDING SYSTEM / PILOT</small></span>
+    </a>
+    <div class="system-state" aria-label="Studio request system status"><span class="pulse-dot" aria-hidden="true"></span><span>REQUEST LINE OPEN</span></div>
+    <nav aria-label="Main">
+      <a class="nav-link" href="{{ url_for('home') }}#session"><span>01</span> Request</a>
+      <a class="nav-link" href="{{ url_for('desk') }}"><span>02</span> Studio desk</a>
+    </nav>
   </header>
-  <main id="main">
-    {% for message in get_flashed_messages() %}<div class="notice" role="status">{{ message }}</div>{% endfor %}
-    {% if error %}<div class="notice error" role="alert"><strong>One thing to fix.</strong> {{ error }}</div>{% endif %}
+  <main id="main" class="page-shell">
+    {% for message in get_flashed_messages() %}<div class="notice" role="status"><span class="notice-code">OK</span><span>{{ message }}</span></div>{% endfor %}
+    {% if error %}<div class="notice error" role="alert"><span class="notice-code">ERR</span><span><strong>One thing to fix.</strong> {{ error }}</span></div>{% endif %}
     {% block content %}{% endblock %}
   </main>
-  <footer class="site-footer"><span>MAROON ROOM <span class="muted">/ Make space for the work.</span></span><span>{% if contact_email %}<a href="mailto:{{ contact_email }}">Contact the studio</a> · {% endif %}<a href="{{ url_for('privacy') }}">Your information</a> · Pilot edition</span></footer>
+  <footer class="site-footer glass-bar">
+    <span class="footer-brand"><span class="pulse-dot" aria-hidden="true"></span> MAROON ROOM <span class="muted">/ MAKE SPACE FOR THE WORK</span></span>
+    <span>{% if contact_email %}<a href="mailto:{{ contact_email }}">CONTACT</a><span class="footer-sep">/</span>{% endif %}<a href="{{ url_for('privacy') }}">YOUR INFORMATION</a><span class="footer-sep">/</span>PILOT EDITION</span>
+  </footer>
 </body>
 </html>

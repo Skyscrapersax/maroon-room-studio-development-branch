@@ -1,3 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ code }} — Maroon Room{% endblock %}
-{% block content %}<section class="narrow"><p class="eyebrow">{{ code }} · REQUEST NOT COMPLETED</p><h1>Let’s try that again.</h1><p class="lede">Your request could not be completed. Follow the message above, then return to the form.</p><a class="button primary" href="{{ url_for('home') }}">Back to Maroon Room</a></section>{% endblock %}
+{% block body_class %}error-surface{% endblock %}
+{% block content %}
+<section class="error-console glass-panel">
+  <div class="panel-kicker"><span>SYSTEM RESPONSE</span><span>ERR-{{ code }}</span></div>
+  <div class="error-glyph" aria-hidden="true">{{ code }}</div>
+  <p class="eyebrow"><span class="eyebrow-line"></span> REQUEST NOT COMPLETED</p>
+  <h1>Signal interrupted.</h1>
+  <p class="lede">Your request could not be completed. Follow the message above, then return to the form.</p>
+  <a class="button primary" href="{{ url_for('home') }}"><span>Return to Maroon Room</span><span aria-hidden="true">↗</span></a>
+</section>
+{% endblock %}

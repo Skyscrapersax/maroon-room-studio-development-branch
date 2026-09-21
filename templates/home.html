@@ -1,27 +1,49 @@
 {% extends "base.html" %}
+{% block body_class %}artist-surface{% endblock %}
 {% block content %}
-<section class="intro"><p class="eyebrow">RECORDING · MIXING · MASTERING</p><h1>Make room for<br>your next record.</h1><p class="lede">Bring the idea. Tell us what it needs.<br>We’ll start with the right session.</p></section>
-<div class="booking-layout">
-  <aside class="studio-note" aria-label="How sessions work">
-    <div class="note-top"><span>THE SESSION BOOK</span><span>01—03</span></div>
-    <h2>A good session<br>starts before<br>you press record.</h2>
-    <p>Share a little about your project and the time you have in mind. The studio reviews every request before it becomes a confirmed session.</p>
-    <ol class="process"><li><span>01</span><div><strong>Tell us the plan</strong><p>Your project, your people, your preferred time.</p></div></li><li><span>02</span><div><strong>Studio review</strong><p>We check the calendar and what the session needs.</p></div></li><li><span>03</span><div><strong>Keep your place</strong><p>Check your private status page. Download a calendar event once confirmed.</p></div></li></ol>
-    <div class="note-bottom">TIMEZONE <strong>{{ zone }}</strong><br><span>Rates and project scope are agreed with the studio. Submitting a request does not take payment.</span></div>
+<section class="hero-grid">
+  <div class="hero-copy">
+    <p class="eyebrow"><span class="eyebrow-line"></span> RECORDING / MIXING / MASTERING</p>
+    <h1>Make room for<br><span>the next record.</span></h1>
+    <p class="lede">A direct line from the first idea to a focused studio session. Send the brief. We’ll make sure the room is right before the clock starts.</p>
+    <a class="hero-action" href="#session">Start a session request <span aria-hidden="true">↓</span></a>
+  </div>
+  <aside class="signal-panel glass-panel" aria-label="Studio session signal">
+    <div class="panel-kicker"><span>STUDIO SIGNAL</span><span>MR-01</span></div>
+    <div class="signal-display" aria-hidden="true">
+      <span style="--level:32%"></span><span style="--level:55%"></span><span style="--level:82%"></span><span style="--level:46%"></span><span style="--level:94%"></span><span style="--level:66%"></span><span style="--level:38%"></span><span style="--level:76%"></span><span style="--level:50%"></span><span style="--level:88%"></span><span style="--level:42%"></span><span style="--level:62%"></span>
+    </div>
+    <div class="signal-readout"><span><small>MODE</small> REVIEW FIRST</span><span><small>ZONE</small> {{ zone }}</span><span><small>ROOMS</small> 01</span></div>
+    <p>No payment is taken here. A request becomes a session only after the studio confirms it.</p>
   </aside>
-  <section id="session" class="request-form" aria-labelledby="request-title">
-    <div class="section-heading"><p class="eyebrow">SESSION REQUEST</p><span class="small muted">All fields required unless marked optional</span></div>
-    <h2 id="request-title">What are you working on?</h2>
+</section>
+
+<div class="booking-layout" id="session">
+  <aside class="studio-note glass-panel" aria-label="How sessions work">
+    <div class="panel-kicker"><span>SESSION PROTOCOL</span><span>01—03</span></div>
+    <h2>Before the red light.</h2>
+    <p class="panel-intro">Give the room enough context to protect the work, the time, and the session.</p>
+    <ol class="process">
+      <li><span>01</span><div><strong>Send the signal</strong><p>Your project, your people, your preferred time.</p></div></li>
+      <li><span>02</span><div><strong>Studio review</strong><p>We check the calendar and what the session needs.</p></div></li>
+      <li><span>03</span><div><strong>Lock the room</strong><p>Return to your private status page. Download the calendar event once confirmed.</p></div></li>
+    </ol>
+    <div class="protocol-note"><span class="status-icon">i</span><p>Rates and scope are agreed directly with the studio. Submitting this form does not reserve time.</p></div>
+  </aside>
+  <section class="request-form glass-panel" aria-labelledby="request-title">
+    <div class="section-heading"><p class="eyebrow"><span class="eyebrow-line"></span> NEW SESSION REQUEST</p><span class="field-status">SECURE FORM / 01</span></div>
+    <h2 id="request-title">Build the session brief.</h2>
+    <p class="form-intro">Every field helps us put the right session on the calendar.</p>
     <form action="{{ url_for('request_session') }}" method="post">
       <input type="hidden" name="csrf" value="{{ session.csrf }}"><input type="hidden" name="request_id" value="{{ request_id }}">
-      <div class="field-pair"><label>Session type<select name="service" required>{% for service in services %}<option{% if values.get('service') == service %} selected{% endif %}>{{ service }}</option>{% endfor %}</select></label><label>Session length<select name="minutes" required>{% for minutes in durations %}<option value="{{ minutes }}"{% if values.get('minutes', '120') == minutes|string %} selected{% endif %}>{{ minutes // 60 }} {{ 'hour' if minutes == 60 else 'hours' }}</option>{% endfor %}</select></label></div>
-      <label>Project or artist name<input name="project" maxlength="120" required value="{{ values.get('project', '') }}" placeholder="The name on the session"></label>
-      <label>Preferred start <span class="muted">({{ zone }})</span><input type="datetime-local" name="start" min="{{ today }}T00:00" required value="{{ values.get('start', '') }}" aria-describedby="time-help"></label><p id="time-help" class="help">A preference, not a reserved slot. The studio will confirm availability.</p>
-      <div class="field-pair"><label>Your name<input name="name" autocomplete="name" maxlength="120" required value="{{ values.get('name', '') }}"></label><label>Email<input type="email" name="email" autocomplete="email" maxlength="200" required value="{{ values.get('email', '') }}"></label></div>
-      <label>Anything we should know? <span class="muted">(optional)</span><textarea name="notes" rows="4" maxlength="2000" placeholder="Number of tracks, who's coming, what you want to leave with…">{{ values.get('notes', '') }}</textarea></label>
+      <div class="field-pair"><label><span class="label-row"><span>Session type</span><small>01</small></span><select name="service" required>{% for service in services %}<option{% if values.get('service') == service %} selected{% endif %}>{{ service }}</option>{% endfor %}</select></label><label><span class="label-row"><span>Session length</span><small>02</small></span><select name="minutes" required>{% for minutes in durations %}<option value="{{ minutes }}"{% if values.get('minutes', '120') == minutes|string %} selected{% endif %}>{{ minutes // 60 }} {{ 'hour' if minutes == 60 else 'hours' }}</option>{% endfor %}</select></label></div>
+      <label><span class="label-row"><span>Project or artist name</span><small>03</small></span><input name="project" maxlength="120" required value="{{ values.get('project', '') }}" placeholder="The name on the session"></label>
+      <label><span class="label-row"><span>Preferred start</span><small>{{ zone }}</small></span><input type="datetime-local" name="start" min="{{ today }}T00:00" required value="{{ values.get('start', '') }}" aria-describedby="time-help"></label><p id="time-help" class="help">Preference only. The studio confirms availability before this time is reserved.</p>
+      <div class="field-pair"><label><span class="label-row"><span>Your name</span><small>04</small></span><input name="name" autocomplete="name" maxlength="120" required value="{{ values.get('name', '') }}" placeholder="Who should we ask for?"></label><label><span class="label-row"><span>Email</span><small>05</small></span><input type="email" name="email" autocomplete="email" maxlength="200" required value="{{ values.get('email', '') }}" placeholder="you@example.com"></label></div>
+      <label><span class="label-row"><span>Session notes</span><small>OPTIONAL</small></span><textarea name="notes" rows="4" maxlength="2000" placeholder="Tracks, people, references, or what you want to leave with…">{{ values.get('notes', '') }}</textarea></label>
       <label class="checkbox"><input type="checkbox" name="consent" value="yes" required{% if values.get('consent') == 'yes' %} checked{% endif %}><span>The studio may use these details to review my session request. <a href="{{ url_for('privacy') }}">How my information is used</a>.</span></label>
-      <button class="primary full" type="submit">Send session request <span aria-hidden="true">↗</span></button>
-      <p class="help center">You’ll get a private status page immediately. Email notifications aren’t enabled in this pilot.</p>
+      <button class="primary full" type="submit"><span>Transmit session request</span><span aria-hidden="true">↗</span></button>
+      <p class="help center">A private status link appears immediately. Email notifications are not enabled in this pilot.</p>
     </form>
   </section>
 </div>

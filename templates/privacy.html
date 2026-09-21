@@ -1,3 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Your information — Maroon Room{% endblock %}
-{% block content %}<article class="narrow prose"><p class="eyebrow">YOUR INFORMATION</p><h1>A session brief.<br>Kept with the studio.</h1><p>This pilot saves your name, email, project, session preference and any notes you enter so the studio can review your request. Please don’t submit payment information or sensitive personal documents.</p><h2>What gets shared?</h2><p>The private studio desk can read your request. Your private status link shows the project name, service, requested time and decision. Anyone with that link can see those details, so keep it private. Email and notes are not included on the status page or in calendar downloads.</p><h2>Cookies and messages</h2><p>The app uses an essential session cookie for form protection and studio sign-in. It includes no advertising trackers or third-party images. This pilot does not send email, SMS or calendar invitations. Calendar files are downloaded only when you choose.</p><h2>Retention and corrections</h2><p>Requests, decisions and cancellation history remain in the studio’s local database until the operator removes them. There is no automatic deletion schedule. Short-lived, keyed network identifiers limit repeated form submissions; expired counters are cleared on later submissions. Ask the studio operator to correct or remove your information{% if contact_email %} at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% endif %}.</p><p class="private-note">This is a small, invited pilot. Public launch still needs a confirmed studio contact, retention process and hosting configuration.</p><a href="{{ url_for('home') }}">Back to session requests ↗</a></article>{% endblock %}
+{% block body_class %}policy-surface{% endblock %}
+{% block content %}
+<article class="policy-console">
+  <header class="policy-head glass-panel">
+    <div class="panel-kicker"><span>DATA PROTOCOL</span><span>REV 01</span></div>
+    <p class="eyebrow"><span class="eyebrow-line"></span> YOUR INFORMATION</p>
+    <h1>A session brief.<br><span>Kept with the studio.</span></h1>
+    <p class="lede">This pilot saves your name, email, project, session preference and any notes you enter so the studio can review your request. Please don’t submit payment information or sensitive personal documents.</p>
+  </header>
+  <div class="policy-body glass-panel">
+    <nav class="policy-index" aria-label="Information sections"><span>IN THIS PROTOCOL</span><a href="#sharing">01 / Sharing</a><a href="#cookies">02 / Cookies</a><a href="#retention">03 / Retention</a></nav>
+    <div class="policy-copy">
+      <section id="sharing"><span class="section-number">01</span><div><h2>What gets shared?</h2><p>The private studio desk can read your request. Your private status link shows the project name, service, requested time and decision. Anyone with that link can see those details, so keep it private. Email and notes are not included on the status page or in calendar downloads.</p></div></section>
+      <section id="cookies"><span class="section-number">02</span><div><h2>Cookies and messages</h2><p>The app uses an essential session cookie for form protection and studio sign-in. It includes no advertising trackers or third-party images. This pilot does not send email, SMS or calendar invitations. Calendar files are downloaded only when you choose.</p></div></section>
+      <section id="retention"><span class="section-number">03</span><div><h2>Retention and corrections</h2><p>Requests, decisions and cancellation history remain in the studio’s local database until the operator removes them. There is no automatic deletion schedule. Short-lived, keyed network identifiers limit repeated form submissions; expired counters are cleared on later submissions. Ask the studio operator to correct or remove your information{% if contact_email %} at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% endif %}.</p></div></section>
+      <div class="private-note warning"><span class="status-icon">!</span><p>This is a small, invited pilot. Public launch still needs a confirmed studio contact, retention process and hosting configuration.</p></div>
+      <a class="button quiet-button" href="{{ url_for('home') }}">← Back to session requests</a>
+    </div>
+  </div>
+</article>
+{% endblock %}

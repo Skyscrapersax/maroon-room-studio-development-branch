@@ -1,3 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Studio desk — Maroon Room{% endblock %}
-{% block content %}<section class="narrow login"><p class="eyebrow">STUDIO TEAM</p><h1>Back of house.</h1><p class="lede">Review requests. Keep the calendar in order.</p><form method="post"><input type="hidden" name="csrf" value="{{ session.csrf }}"><label>Studio password<input type="password" name="password" autocomplete="current-password" required autofocus></label><button class="primary full">Open studio desk ↗</button></form><p class="help">This desk is for the studio team. Artists can <a href="{{ url_for('home') }}#session">request a session here</a>.</p></section>{% endblock %}
+{% block body_class %}login-surface{% endblock %}
+{% block content %}
+<section class="login-console">
+  <div class="login-intro glass-panel">
+    <div class="panel-kicker"><span>OPERATOR CHANNEL</span><span>AUTH-01</span></div>
+    <div class="lock-mark" aria-hidden="true"><span></span></div>
+    <p class="eyebrow"><span class="eyebrow-line"></span> STUDIO TEAM</p>
+    <h1>Back of house.</h1>
+    <p class="lede">Review incoming requests, resolve schedule conflicts, and keep the room in order.</p>
+    <div class="operator-states"><span><i class="pulse-dot"></i> LOCAL DATA</span><span><i></i> NO PUBLIC ACCESS</span><span><i></i> 8H SESSION</span></div>
+  </div>
+  <div class="login-form glass-panel">
+    <div class="section-heading"><p class="eyebrow"><span class="eyebrow-line"></span> OPERATOR SIGN IN</p><span class="field-status">RESTRICTED</span></div>
+    <form method="post"><input type="hidden" name="csrf" value="{{ session.csrf }}"><label><span class="label-row"><span>Studio password</span><small>REQUIRED</small></span><input type="password" name="password" autocomplete="current-password" required autofocus placeholder="Enter operator credential"></label><button class="primary full"><span>Open studio desk</span><span aria-hidden="true">↗</span></button></form>
+    <div class="private-note"><span class="status-icon">i</span><p>This channel is for the studio team. Artists can <a href="{{ url_for('home') }}#session">send a session request here</a>.</p></div>
+  </div>
+</section>
+{% endblock %}

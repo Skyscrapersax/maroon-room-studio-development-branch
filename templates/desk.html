@@ -1,11 +1,78 @@
 {% extends "base.html" %}
 {% block title %}Session desk — Maroon Room{% endblock %}
+{% block body_class %}desk-surface{% endblock %}
 {% block content %}
-<div class="desk-heading"><div><p class="eyebrow">STUDIO TEAM · {{ zone }}</p><h1>The session desk.</h1></div><form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="quiet">Sign out</button></form></div>
-<section class="desk-section" aria-labelledby="inbox-heading"><div class="section-heading"><h2 id="inbox-heading">Requests to review <span class="count">{{ total }}</span></h2><span class="small muted">Oldest first · showing up to 200</span></div>
-{% for item in pending %}<article class="request-row"><div class="row-main"><p class="eyebrow">{{ item.service }} · REQUEST {{ item.id }}</p><h3>{{ item.project }}</h3><p><strong>{{ item.starts|localtime }}</strong><br>{{ (item.ends-item.starts)//3600 }} hours · {{ item.client }} · <a href="mailto:{{ item.email }}">{{ item.email }}</a></p>{% if item.notes %}<p class="notes">{{ item.notes }}</p>{% endif %}<a class="small" href="{{ url_for('receipt', token=item.token) }}">Open private status page ↗</a></div><div class="decision-buttons"><form method="post" action="{{ url_for('decide', item_id=item.id, action='accept') }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="primary" aria-label="Confirm request {{ item.id }}">Confirm session</button></form><form method="post" action="{{ url_for('decide', item_id=item.id, action='decline') }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="quiet" aria-label="Decline request {{ item.id }}">Decline time</button></form></div></article>{% else %}<div class="empty"><strong>A little room to breathe.</strong><p>No requests waiting. New session requests will appear here.</p></div>{% endfor %}
-<p class="help">Confirm only after agreeing scope and rates with the artist. Decisions update the private status page; contact the artist yourself when needed.</p></section>
-<section class="desk-section" aria-labelledby="calendar-heading"><div class="section-heading"><h2 id="calendar-heading">On the calendar</h2><span class="small muted">Recent and upcoming · up to 200</span></div>
-{% for item in bookings %}<article class="calendar-row"><div><span class="badge {{ 'cancelled' if item.cancelled else 'accepted' }}">{{ 'Cancelled' if item.cancelled else 'Confirmed' }}</span><h3>{{ item.title }}</h3><p>{{ item.starts|localtime }} → {{ item.ends|localtime }}<br>{{ item.client }}{% if item.contact %} · {{ item.contact }}{% endif %}</p></div><div class="actions"><a href="{{ url_for('calendar', item_id=item.id) }}">Calendar (.ics)</a>{% if not item.cancelled %}<form method="post" action="{{ url_for('cancel', item_id=item.id) }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="quiet" aria-label="Cancel booking {{ item.id }}">Cancel session</button></form>{% endif %}</div></article>{% else %}<div class="empty"><p>No recent or upcoming sessions. Confirm a request or add studio time below.</p></div>{% endfor %}</section>
-<details class="manual-booking"><summary>Add a booking or block studio time</summary><form method="post" action="{{ url_for('book') }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><input type="hidden" name="request_id" value="{{ request_id }}"><div class="field-pair"><label>Session / reason<input name="project" required maxlength="120" value="{{ values.get('project','') }}"></label><label>Artist or team<input name="name" required maxlength="120" value="{{ values.get('name','') }}" placeholder="Use Studio for a calendar block"></label></div><div class="field-pair"><label>Start ({{ zone }})<input type="datetime-local" name="start" required min="{{ today }}T00:00" value="{{ values.get('start','') }}"></label><label>Length<select name="minutes">{% for minutes in durations %}<option value="{{ minutes }}"{% if values.get('minutes','120') == minutes|string %} selected{% endif %}>{{ minutes//60 }} hours</option>{% endfor %}</select></label></div><label>Contact (optional)<input name="email" maxlength="200" value="{{ values.get('email','') }}"></label><label>Internal notes (optional)<textarea name="notes" maxlength="2000">{{ values.get('notes','') }}</textarea></label><button class="primary">Save booking</button></form></details>
+<section class="desk-console">
+  <header class="desk-heading glass-panel">
+    <div>
+      <p class="eyebrow"><span class="eyebrow-line"></span> STUDIO OPERATIONS / {{ zone }}</p>
+      <h1>Session desk.</h1>
+      <p class="lede">One view for every request, decision, and confirmed room block.</p>
+    </div>
+    <div class="desk-heading-actions">
+      <div class="desk-stat"><small>PENDING</small><strong>{{ total }}</strong></div>
+      <div class="desk-stat active"><small>SYSTEM</small><strong>LIVE</strong></div>
+      <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="quiet">Sign out</button></form>
+    </div>
+  </header>
+
+  <section class="desk-section glass-panel" aria-labelledby="inbox-heading">
+    <div class="section-heading desk-section-head">
+      <div><p class="eyebrow"><span class="eyebrow-line"></span> INCOMING</p><h2 id="inbox-heading">Requests to review <span class="count">{{ total }}</span></h2></div>
+      <span class="field-status">OLDEST FIRST / MAX 200</span>
+    </div>
+    <div class="request-stack">
+      {% for item in pending %}
+      <article class="request-row">
+        <div class="request-index"><span>{{ '%02d'|format(loop.index) }}</span><i class="pulse-dot"></i></div>
+        <div class="row-main">
+          <div class="row-meta"><span class="badge pending">{{ item.service }}</span><span>REQ-{{ item.id }}</span><span>{{ (item.ends-item.starts)//3600 }}H</span></div>
+          <h3>{{ item.project }}</h3>
+          <p class="session-time">{{ item.starts|localtime }}</p>
+          <p class="client-line">{{ item.client }} <span>/</span> <a href="mailto:{{ item.email }}">{{ item.email }}</a></p>
+          {% if item.notes %}<p class="notes">{{ item.notes }}</p>{% endif %}
+          <a class="inline-link" href="{{ url_for('receipt', token=item.token) }}">Open private status page <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="decision-buttons">
+          <form method="post" action="{{ url_for('decide', item_id=item.id, action='accept') }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="primary" aria-label="Confirm request {{ item.id }}"><span>Confirm</span><span aria-hidden="true">✓</span></button></form>
+          <form method="post" action="{{ url_for('decide', item_id=item.id, action='decline') }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="quiet" aria-label="Decline request {{ item.id }}">Decline time</button></form>
+        </div>
+      </article>
+      {% else %}
+      <div class="empty"><span class="empty-mark" aria-hidden="true">○</span><div><strong>Request queue clear.</strong><p>New session requests will appear on this channel.</p></div></div>
+      {% endfor %}
+    </div>
+    <div class="desk-guidance"><span class="status-icon">i</span><p>Confirm only after agreeing scope and rates with the artist. Decisions update the private status page; contact the artist through your existing channel.</p></div>
+  </section>
+
+  <section class="desk-section glass-panel" aria-labelledby="calendar-heading">
+    <div class="section-heading desk-section-head">
+      <div><p class="eyebrow"><span class="eyebrow-line"></span> ROOM SCHEDULE</p><h2 id="calendar-heading">On the calendar</h2></div>
+      <span class="field-status">RECENT + UPCOMING / MAX 200</span>
+    </div>
+    <div class="calendar-stack">
+      {% for item in bookings %}
+      <article class="calendar-row {{ 'is-cancelled' if item.cancelled else '' }}">
+        <div class="calendar-state"><span class="state-line"></span><span class="badge {{ 'cancelled' if item.cancelled else 'accepted' }}">{{ 'Cancelled' if item.cancelled else 'Confirmed' }}</span></div>
+        <div class="calendar-main"><h3>{{ item.title }}</h3><p class="session-time">{{ item.starts|localtime }} <span aria-hidden="true">→</span> {{ item.ends|localtime }}</p><p class="client-line">{{ item.client }}{% if item.contact %} <span>/</span> {{ item.contact }}{% endif %}</p></div>
+        <div class="actions"><a class="inline-link" href="{{ url_for('calendar', item_id=item.id) }}">Calendar (.ics) ↓</a>{% if not item.cancelled %}<form method="post" action="{{ url_for('cancel', item_id=item.id) }}"><input type="hidden" name="csrf" value="{{ session.csrf }}"><button class="quiet danger" aria-label="Cancel booking {{ item.id }}">Cancel session</button></form>{% endif %}</div>
+      </article>
+      {% else %}
+      <div class="empty"><span class="empty-mark" aria-hidden="true">◇</span><div><strong>No active room blocks.</strong><p>Confirm a request or add studio time below.</p></div></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <details class="manual-booking glass-panel">
+    <summary><span><span class="summary-icon">+</span><strong>Add a booking or block studio time</strong></span><span class="field-status">MANUAL ENTRY</span></summary>
+    <form method="post" action="{{ url_for('book') }}">
+      <input type="hidden" name="csrf" value="{{ session.csrf }}"><input type="hidden" name="request_id" value="{{ request_id }}">
+      <div class="field-pair"><label><span class="label-row"><span>Session / reason</span><small>REQUIRED</small></span><input name="project" required maxlength="120" value="{{ values.get('project','') }}"></label><label><span class="label-row"><span>Artist or team</span><small>REQUIRED</small></span><input name="name" required maxlength="120" value="{{ values.get('name','') }}" placeholder="Use Studio for a calendar block"></label></div>
+      <div class="field-pair"><label><span class="label-row"><span>Start</span><small>{{ zone }}</small></span><input type="datetime-local" name="start" required min="{{ today }}T00:00" value="{{ values.get('start','') }}"></label><label><span class="label-row"><span>Length</span><small>ROOM TIME</small></span><select name="minutes">{% for minutes in durations %}<option value="{{ minutes }}"{% if values.get('minutes','120') == minutes|string %} selected{% endif %}>{{ minutes//60 }} hours</option>{% endfor %}</select></label></div>
+      <label><span class="label-row"><span>Contact</span><small>OPTIONAL</small></span><input name="email" maxlength="200" value="{{ values.get('email','') }}"></label>
+      <label><span class="label-row"><span>Internal notes</span><small>OPTIONAL</small></span><textarea name="notes" maxlength="2000" rows="4">{{ values.get('notes','') }}</textarea></label>
+      <button class="primary"><span>Save room block</span><span aria-hidden="true">↗</span></button>
+    </form>
+  </details>
+</section>
 {% endblock %}
