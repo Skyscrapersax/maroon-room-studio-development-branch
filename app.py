@@ -76,6 +76,7 @@ def create_app(config=None):
     database = Path(app.config["DATABASE"])
     database.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     database.touch(mode=0o600, exist_ok=True)
+    database.chmod(0o600)
 
     def db():
         conn = sqlite3.connect(database, timeout=10)
