@@ -43,7 +43,7 @@ There is no payment collection, email/SMS delivery, external calendar synchroniz
 
 ## Hosting configuration
 
-Use one app deployment with a persistent local disk, behind HTTPS and a service supervisor. Do not put this SQLite database on ephemeral/serverless storage or a shared network filesystem. The app creates the database with mode `0600`; the operator must preserve restrictive permissions on restored files, backups and existing directories.
+Use one app deployment with a persistent local disk, behind HTTPS and a service supervisor. Do not put this SQLite database on ephemeral/serverless storage or a shared network filesystem. At startup, the app enforces mode `0600` on the main database file, including existing files. The operator must still protect backups, SQLite sidecar files and existing directories.
 
 | Variable | Meaning |
 | --- | --- |
@@ -89,7 +89,7 @@ Requests, booking history and personal information remain until the operator rem
 .venv/bin/python -m unittest -v
 ```
 
-Seven integration tests cover the request/approval/cancellation flow, persistence and backup recovery, concurrent conflicts, adjacent bookings, authorization/CSRF/host rejection, private data exclusions, input errors, durable throttles, manual calendar blocks, DST and calendar injection. GitHub CI runs these checks on Python 3.12.
+Eight integration tests cover the request/approval/cancellation flow, persistence and backup recovery, existing database permissions, concurrent conflicts, adjacent bookings, authorization/CSRF/host rejection, private data exclusions, input errors, durable throttles, manual calendar blocks, DST and calendar injection. GitHub CI runs these checks on Python 3.12.
 
 Browser acceptance: submit synthetic data → verify pending status → sign in → approve → verify confirmed status/calendar link → cancel → verify cancelled status/calendar link. Also inspect a narrow mobile viewport and keyboard navigation on target devices before widening the pilot. Automated tests do not certify a public deployment or external calendar client behavior.
 
