@@ -2,7 +2,7 @@
 
 A working, single-studio session request and booking pilot. Artists request recording, mixing or mastering time; the studio reviews each request before it reserves the calendar. **America/New_York** is the owner-confirmed default timezone.
 
-The previous static React page only displayed an alert after date selection. This version saves requests in SQLite, gives the artist a private status page, and provides an authenticated studio desk. Flask renders the complete workflow; there is no frontend build or JavaScript dependency.
+The previous static React page only displayed an alert after date selection. This version saves requests in SQLite, gives the artist a private status page, and provides an authenticated studio desk. Flask renders the workflow. GSAP and Anime.js are vendored under `static/vendor/` and loaded by the base template; there is no frontend build.
 
 ## Run locally
 
