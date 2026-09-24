@@ -119,7 +119,8 @@ class StudioPilot(unittest.TestCase):
         page = self.artist.get(response.location)
         self.assertEqual(page.headers["Referrer-Policy"], "no-referrer")
         self.assertEqual(page.headers["Cache-Control"], "no-store")
-        self.assertIn("script-src 'none'", page.headers["Content-Security-Policy"])
+        self.assertIn("script-src 'self'", page.headers["Content-Security-Policy"])
+        self.assertNotIn("script-src 'none'", page.headers["Content-Security-Policy"])
         op = self.operator()
         self.assertEqual(self.post(op, "/requests/9999999999999999999999999/accept").status_code, 404)
         self.post(op, "/logout")
@@ -160,6 +161,21 @@ class StudioPilot(unittest.TestCase):
         self.assertEqual(self.post(op, "/bookings/1/cancel").status_code, 303)
         self.assertEqual(self.post(op, "/requests/1/accept").status_code, 303)
         self.assertIn("Session confirmed", self.artist.get(response.location).text)
+
+    def test_motion_scripts_load_from_the_base_template(self):
+        page = self.artist.get("/").text
+        gsap = page.index("/static/vendor/gsap.min.js")
+        anime = page.index("/static/vendor/anime.min.js")
+        motion = page.index("/static/motion.js")
+        self.assertLess(gsap, anime)
+        self.assertLess(anime, motion)
+        source = (Path(__file__).resolve().parent / "static/motion.js").read_text()
+        self.assertIn('clearProps: "transform,opacity,visibility"', source)
+        self.assertIn("prefers-reduced-motion", source)
+        self.assertIn("gsap.timeline", source)
+        self.assertIn(".request-row", source)
+        self.assertIn("3.12.7", (Path(__file__).resolve().parent / "static/vendor/gsap.min.js").read_text(encoding="utf-8")[:240])
+        self.assertIn("3.2.2", (Path(__file__).resolve().parent / "static/vendor/anime.min.js").read_text(encoding="utf-8")[:240])
 
     def test_dst_and_calendar_text_keep_booking_scheduler_contract(self):
         zone = ZoneInfo("America/New_York")

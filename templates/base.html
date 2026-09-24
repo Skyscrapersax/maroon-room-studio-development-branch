@@ -20,5 +20,8 @@
     {% block content %}{% endblock %}
   </main>
   <footer class="site-footer"><span>MAROON ROOM <span class="muted">/ Make space for the work.</span></span><span>{% if contact_email %}<a href="mailto:{{ contact_email }}">Contact the studio</a> · {% endif %}<a href="{{ url_for('privacy') }}">Your information</a> · Pilot edition</span></footer>
+  <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='vendor/anime.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='motion.js') }}"></script>
 </body>
 </html>
