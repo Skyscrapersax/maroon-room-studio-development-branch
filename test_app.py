@@ -187,6 +187,12 @@ class StudioPilot(unittest.TestCase):
         self.assertNotIn("\r\nBEGIN:VEVENT", folded)
         self.assertIn("\\;\\,", folded)
 
+    def test_existing_database_is_made_owner_only(self):
+        database = Path(self.config["DATABASE"])
+        database.chmod(0o644)
+        create_app(self.config)
+        self.assertEqual(database.stat().st_mode & 0o777, 0o600)
+
 
 if __name__ == "__main__":
     unittest.main()

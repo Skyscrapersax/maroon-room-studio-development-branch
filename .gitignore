@@ -14,6 +14,11 @@
 # misc
 .DS_Store
 .venv/
+.vercel/
+public/static/
+*.dump
+*.backup
+!.env.example
 __pycache__/
 *.pyc
 instance/

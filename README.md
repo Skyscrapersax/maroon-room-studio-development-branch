@@ -2,7 +2,9 @@
 
 A working, single-studio session request and booking pilot. Artists request recording, mixing or mastering time; the studio reviews each request before it reserves the calendar. **America/New_York** is the owner-confirmed default timezone.
 
-The previous static React page only displayed an alert after date selection. This version saves requests in SQLite, gives the artist a private status page, and provides an authenticated studio desk. Flask renders the workflow. GSAP and Anime.js are vendored under `static/vendor/` and loaded by the base template; there is no frontend build.
+The previous static React page only displayed an alert after date selection. This version saves requests in SQLite locally or PostgreSQL on Vercel, gives the artist a private status page, and provides an authenticated studio desk. Flask renders the workflow. GSAP and Anime.js are vendored under `static/vendor/` and loaded by the base template; there is no frontend build.
+
+**Vercel deployment:** [DEPLOYMENT.md](DEPLOYMENT.md) covers durable Postgres, schema initialization, data import, secure settings, CDN assets and recovery. Hosted startup refuses SQLite. The local commands below remain available for rehearsal.
 
 ## Run locally
 
@@ -26,6 +28,8 @@ Open `http://127.0.0.1:8795/`. Studio sign-in is `/desk`. Use a separate private
 - Recording, mixing and mastering requests with 1, 2, 3, 4 or 8-hour durations.
 - Durable requests and opaque private status links. A request is explicitly **not a reservation**.
 - Studio approval/decline, manual bookings or calendar blocks, and cancellation with retained history.
+- Atomic rescheduling with stale-edit protection; the artist's existing private status link shows the new time. Calendar UID stays stable and revision increases.
+- Searchable, paginated request/booking history and previous session times in authenticated change history.
 - Overlap checking and approval in the same SQLite write transaction; simultaneous approvals cannot double-book one studio. Adjacent sessions are allowed.
 - Downloadable confirmed/cancelled `.ics` events with stable IDs and escaped, folded calendar text. Email and internal notes are excluded.
 - New York display times, UTC storage and calendar exports. Skipped/repeated daylight-saving start times are rejected instead of guessed.
@@ -39,11 +43,14 @@ There is no payment collection, email/SMS delivery, external calendar synchroniz
 2. Artist sends a request and bookmarks its private status page. Anyone holding that link can see project name, service, times and decision; email and notes stay in the authenticated desk.
 3. Operator reviews the request, confirms availability and scope, then accepts or declines it. Pending requests may overlap; only confirmed bookings occupy the calendar.
 4. Artist checks status and downloads the calendar file after approval. If cancelled, the artist must update their calendar; the app does not send invitations or cancellation messages.
-5. Operator backs up the database and checks the desk daily. It shows the oldest 200 pending requests and up to 200 bookings ending within the last day or later. Older records remain in the database; there is no history search/pagination yet.
+5. Operator backs up the database and checks the desk daily. The overview shows the oldest 200 pending requests and up to 200 recent/upcoming bookings. Search history exposes all saved requests, sessions, declines and cancellations in pages of 25.
 
 ## Hosting configuration
 
-Use one app deployment with a persistent local disk, behind HTTPS and a service supervisor. Do not put this SQLite database on ephemeral/serverless storage or a shared network filesystem. The app creates the database with mode `0600`; the operator must preserve restrictive permissions on restored files, backups and existing directories.
+Use one app deployment with a persistent local disk, behind HTTPS and a service supervisor. Do not put this SQLite database on ephemeral/serverless storage or a shared network filesystem. At startup, the app enforces mode `0600` on the main database file, including existing files. The operator must still protect backups, SQLite sidecar files and existing directories.
+
+That paragraph applies to the local SQLite option. For Vercel, set `DATABASE_URL`
+(or `STUDIO_DATABASE_URL`) to external PostgreSQL and follow [DEPLOYMENT.md](DEPLOYMENT.md).
 
 | Variable | Meaning |
 | --- | --- |
@@ -89,7 +96,7 @@ Requests, booking history and personal information remain until the operator rem
 .venv/bin/python -m unittest -v
 ```
 
-Seven integration tests cover the request/approval/cancellation flow, persistence and backup recovery, concurrent conflicts, adjacent bookings, authorization/CSRF/host rejection, private data exclusions, input errors, durable throttles, manual calendar blocks, DST and calendar injection. GitHub CI runs these checks on Python 3.12.
+Integration tests cover request/approval/cancellation, rescheduling and stale edits, calendar revisions, history privacy/pagination, persistence, backup/import, database permissions, process-level concurrent conflicts, adjacency, authorization/CSRF/host rejection, private data exclusions, input errors, durable throttles, manual blocks, DST and calendar injection. GitHub CI checks SQLite and real PostgreSQL on Python 3.12.
 
 Browser acceptance: submit synthetic data → verify pending status → sign in → approve → verify confirmed status/calendar link → cancel → verify cancelled status/calendar link. Also inspect a narrow mobile viewport and keyboard navigation on target devices before widening the pilot. Automated tests do not certify a public deployment or external calendar client behavior.
 

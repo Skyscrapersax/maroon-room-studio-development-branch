@@ -8,11 +8,12 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 import hashlib
 import hmac
+import json
 import os
 from pathlib import Path
 import re
 import secrets
-import sqlite3
+from database import connect, transaction, initialize, validate, DatabaseError
 from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
@@ -57,14 +58,14 @@ def create_app(config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("STUDIO_SECRET", ""), ADMIN_PASSWORD=os.environ.get("STUDIO_PASSWORD", ""),
-        DATABASE=os.environ.get("STUDIO_DATABASE", str(Path(app.instance_path) / "studio.sqlite3")),
+        DATABASE=os.environ.get("STUDIO_DATABASE_URL") or os.environ.get("DATABASE_URL") or os.environ.get("STUDIO_DATABASE", str(Path(app.instance_path) / "studio.sqlite3")),
         TIMEZONE=os.environ.get("STUDIO_TIMEZONE", "America/New_York"),
         CONTACT_EMAIL=os.environ.get("STUDIO_CONTACT_EMAIL", ""),
         SESSION_COOKIE_NAME="maroon_room_session", SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Strict", SESSION_COOKIE_SECURE=os.environ.get("STUDIO_COOKIE_SECURE") != "0",
         PERMANENT_SESSION_LIFETIME=timedelta(hours=8), MAX_CONTENT_LENGTH=16384,
-        TRUSTED_HOSTS=["localhost", "127.0.0.1"] + ([os.environ["STUDIO_HOST"]] if os.environ.get("STUDIO_HOST") else []),
-        REQUEST_LIMIT=5, LOGIN_LIMIT=10,
+        TRUSTED_HOSTS=["localhost", "127.0.0.1"] + [os.environ[k] for k in ("STUDIO_HOST", "VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_PROJECT_PRODUCTION_URL") if os.environ.get(k)],
+        REQUEST_LIMIT=5, LOGIN_LIMIT=10, HOSTED=bool(os.environ.get("VERCEL")), AUTO_MIGRATE=True,
     )
     app.config.update(config or {})
     if len(app.config["SECRET_KEY"]) < 32 or len(app.config["ADMIN_PASSWORD"]) < 16:
@@ -73,22 +74,24 @@ def create_app(config=None):
     if app.config["CONTACT_EMAIL"] and not re.fullmatch(r"[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+", app.config["CONTACT_EMAIL"]):
         raise ValueError("STUDIO_CONTACT_EMAIL must be an email address.")
     zone = ZoneInfo(app.config["TIMEZONE"])
-    database = Path(app.config["DATABASE"])
-    database.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    database.touch(mode=0o600, exist_ok=True)
+    database = app.config["DATABASE"]
+    postgres = str(database).startswith(("postgres://", "postgresql://"))
+    if app.config["HOSTED"] and (not postgres or not app.config["SESSION_COOKIE_SECURE"]):
+        raise ValueError("Vercel requires DATABASE_URL for PostgreSQL and secure cookies.")
+    if not postgres:
+        database = Path(database)
+        database.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        database.touch(mode=0o600, exist_ok=True)
+        database.chmod(0o600)
 
     def db():
-        conn = sqlite3.connect(database, timeout=10)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
+        return connect(database)
 
     def now():
         return int(datetime.now(timezone.utc).timestamp())
 
     with closing(db()) as conn:
-        conn.executescript("""
-            PRAGMA journal_mode=WAL;
+        schema = """
             CREATE TABLE IF NOT EXISTS bookings (
                 id INTEGER PRIMARY KEY, title TEXT NOT NULL, client TEXT NOT NULL,
                 contact TEXT NOT NULL, notes TEXT NOT NULL, starts INTEGER NOT NULL,
@@ -103,7 +106,13 @@ def create_app(config=None):
                 status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
                 booking_id INTEGER REFERENCES bookings(id), decided INTEGER);
             CREATE TABLE IF NOT EXISTS limits (bucket TEXT PRIMARY KEY, count INTEGER NOT NULL, resets INTEGER NOT NULL);
-        """)
+        """
+        initialize(conn, schema) if app.config["AUTO_MIGRATE"] else validate(conn)
+        conn.execute("SELECT token,booking_id FROM requests LIMIT 0")
+
+    def record_change(conn, row, action):
+        conn.execute("INSERT INTO booking_history(booking_id,action,changed,snapshot) VALUES(?,?,?,?)",
+                     (row["id"], action, now(), json.dumps(dict(row))))
 
     @app.before_request
     def protect():
@@ -114,14 +123,17 @@ def create_app(config=None):
             abort(400, "Form expired. Reload the page and try again.")
         if request.method == "POST" and request.endpoint in {"request_session", "login"}:
             limit, window = (app.config["REQUEST_LIMIT"], 3600) if request.endpoint == "request_session" else (app.config["LOGIN_LIMIT"], 900)
-            bucket = hmac.new(app.config["SECRET_KEY"].encode(), f"{request.endpoint}:{request.remote_addr}".encode(), hashlib.sha256).hexdigest()
+            address = request.remote_addr or "unknown"
+            if os.environ.get("VERCEL"):
+                address = request.headers.get("x-vercel-forwarded-for", address).split(",")[0].strip()
+            bucket = hmac.new(app.config["SECRET_KEY"].encode(), f"{request.endpoint}:{address}".encode(), hashlib.sha256).hexdigest()
             with closing(db()) as conn:
                 conn.execute("BEGIN IMMEDIATE")
                 conn.execute("DELETE FROM limits WHERE resets <= ?", (now(),))
                 row = conn.execute("SELECT count FROM limits WHERE bucket=?", (bucket,)).fetchone()
                 if row and row["count"] >= limit:
                     abort(429, "Too many attempts. Please try again later.")
-                conn.execute("INSERT INTO limits VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1", (bucket, now()+window))
+                conn.execute("INSERT INTO limits VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=limits.count+1", (bucket, now()+window))
                 conn.commit()
 
     @app.after_request
@@ -168,8 +180,8 @@ def create_app(config=None):
             raise ValueError("Form identifier invalid. Reload the page and try again.")
         return value
 
-    def conflict(conn, starts, ends):
-        return conn.execute("SELECT id FROM bookings WHERE cancelled IS NULL AND starts < ? AND ends > ?", (ends, starts)).fetchone()
+    def conflict(conn, starts, ends, except_id=0):
+        return conn.execute("SELECT id FROM bookings WHERE cancelled IS NULL AND starts < ? AND ends > ? AND id<>?", (ends, starts, except_id)).fetchone()
 
     @app.get("/")
     def home():
@@ -206,10 +218,13 @@ def create_app(config=None):
         if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
             abort(404)
         with closing(db()) as conn:
-            row = conn.execute("SELECT requests.*, bookings.cancelled FROM requests LEFT JOIN bookings ON requests.booking_id=bookings.id WHERE token=?", (token,)).fetchone()
+            row = conn.execute("SELECT requests.*, bookings.cancelled, bookings.starts AS confirmed_starts, bookings.ends AS confirmed_ends FROM requests LEFT JOIN bookings ON requests.booking_id=bookings.id WHERE token=?", (token,)).fetchone()
         if row is None:
             abort(404)
-        return row
+        result = dict(row)
+        if row["confirmed_starts"] is not None:
+            result.update(starts=row["confirmed_starts"], ends=row["confirmed_ends"])
+        return result
 
     @app.get("/request/<token>")
     def receipt(token):
@@ -234,7 +249,7 @@ def create_app(config=None):
         return redirect(url_for("home"), code=303)
 
     def render_desk(error=None, status=200):
-        # ponytail: one studio, 200 visible rows; add pagination before a larger rollout.
+        # Overview is bounded; searchable history exposes every saved record.
         with closing(db()) as conn:
             pending = conn.execute("SELECT * FROM requests WHERE status='pending' ORDER BY created,id LIMIT 200").fetchall()
             bookings = conn.execute("SELECT * FROM bookings WHERE ends>? ORDER BY starts,id LIMIT 200", (now()-86400,)).fetchall()
@@ -245,6 +260,70 @@ def create_app(config=None):
     @staff
     def desk():
         return render_desk()
+
+    @app.get("/desk/history")
+    @staff
+    def history():
+        query = request.args.get("q", "").strip()
+        kind = request.args.get("kind", "requests")
+        try:
+            page = int(request.args.get("page", "1"))
+            if not 1 <= page <= 1000000 or len(query) > 120 or kind not in {"requests", "bookings"}:
+                raise ValueError()
+        except ValueError:
+            abort(400, "Invalid history filter.")
+        columns = ("project", "client", "email") if kind == "requests" else ("title", "client", "contact")
+        pattern = "%"+query.lower().replace("!", "!!").replace("%", "!%").replace("_", "!_")+"%"
+        where = " OR ".join("LOWER("+c+") LIKE ? ESCAPE '!'" for c in columns)
+        with closing(db()) as conn:
+            total = conn.execute("SELECT COUNT(*) FROM "+kind+" WHERE "+where, [pattern]*3).fetchone()[0]
+            items = conn.execute("SELECT * FROM "+kind+" WHERE "+where+" ORDER BY created DESC,id DESC LIMIT ? OFFSET ?", [pattern]*3+[25,(page-1)*25]).fetchall()
+        return render_template("history.html", items=items, kind=kind, q=query, page=page, total=total, more=page*25<total)
+
+    @app.get("/bookings/<int:item_id>/history")
+    @staff
+    def changes(item_id):
+        if item_id > 2**63-1:
+            abort(404)
+        with closing(db()) as conn:
+            item = conn.execute("SELECT * FROM bookings WHERE id=?", (item_id,)).fetchone()
+            if item is None:
+                abort(404)
+            entries = conn.execute("SELECT * FROM booking_history WHERE booking_id=? ORDER BY id DESC LIMIT 100", (item_id,)).fetchall()
+        return render_template("history.html", item=item, changes=[dict(e) | {"before": json.loads(e["snapshot"])} for e in entries])
+
+    @app.route("/bookings/<int:item_id>/reschedule", methods=["GET", "POST"])
+    @staff
+    def reschedule(item_id):
+        if item_id > 2**63-1:
+            abort(404)
+        with closing(db()) as conn:
+            row = conn.execute("SELECT * FROM bookings WHERE id=?", (item_id,)).fetchone()
+            if row is None:
+                abort(404)
+            if row["cancelled"] is not None:
+                abort(409, "Cancelled sessions cannot be rescheduled.")
+            def render(error=None, status=200):
+                return render_template("reschedule.html", item=row, error=error,
+                    start=datetime.fromtimestamp(row["starts"], zone).strftime("%Y-%m-%dT%H:%M")), status
+            if request.method == "GET":
+                return render()
+            try:
+                starts, ends = times()
+                revision = int(request.form.get("sequence", ""))
+            except ValueError as exc:
+                return render(str(exc), 422)
+            with transaction(conn):
+                row = conn.execute("SELECT * FROM bookings WHERE id=?", (item_id,)).fetchone()
+                if row["cancelled"] is not None or row["sequence"] != revision:
+                    return render("This session changed. Reload before saving again.", 409)
+                if conflict(conn, starts, ends, item_id):
+                    return render("That time overlaps another session. The original time is unchanged.", 409)
+                if (starts, ends) != (row["starts"], row["ends"]):
+                    record_change(conn, row, "rescheduled")
+                    conn.execute("UPDATE bookings SET starts=?,ends=?,updated=?,sequence=sequence+1 WHERE id=?", (starts, ends, now(), item_id))
+        flash("Session rescheduled. The artist's private page and calendar file show the new time; contact them to confirm the change.")
+        return redirect(url_for("desk"), code=303)
 
     @app.post("/requests/<int:item_id>/<action>")
     @staff
@@ -300,21 +379,24 @@ def create_app(config=None):
     def cancel(item_id):
         if item_id > 2**63-1:
             abort(404)
-        with closing(db()) as conn:
-            if not conn.execute("SELECT id FROM bookings WHERE id=?", (item_id,)).fetchone():
+        with closing(db()) as conn, transaction(conn):
+            row = conn.execute("SELECT * FROM bookings WHERE id=?", (item_id,)).fetchone()
+            if row is None:
                 abort(404)
-            conn.execute("UPDATE bookings SET cancelled=? WHERE id=? AND cancelled IS NULL", (now(), item_id))
-            conn.commit()
+            if row["cancelled"] is None:
+                record_change(conn, row, "cancelled")
+                conn.execute("UPDATE bookings SET cancelled=?,updated=?,sequence=sequence+1 WHERE id=?", (now(), now(), item_id))
         flash("Session cancelled. History and its updated status page are retained.")
         return redirect(url_for("desk"), code=303)
 
     def calendar_response(row):
         utc = lambda stamp: datetime.fromtimestamp(stamp, timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Maroon Room//Session Desk//EN", "BEGIN:VEVENT",
-            f"UID:{row['request_id']}@maroon-room.local", f"DTSTAMP:{utc(row['cancelled'] or row['created'])}",
+            f"UID:{row['request_id']}@maroon-room.local", f"DTSTAMP:{utc(row['updated'] or row['created'])}",
+            f"LAST-MODIFIED:{utc(row['updated'] or row['created'])}",
             f"DTSTART:{utc(row['starts'])}", f"DTEND:{utc(row['ends'])}", "SUMMARY:"+calendar_text(row["title"]),
             "STATUS:"+("CANCELLED" if row["cancelled"] else "CONFIRMED"),
-            "SEQUENCE:"+("1" if row["cancelled"] else "0"), "END:VEVENT", "END:VCALENDAR"]
+            f"SEQUENCE:{row['sequence']}", "END:VEVENT", "END:VCALENDAR"]
         return Response(fold_calendar(lines), mimetype="text/calendar", headers={"Content-Disposition": 'attachment; filename="studio-session.ics"'})
 
     @app.get("/request/<token>/calendar.ics")
@@ -354,4 +436,6 @@ def create_app(config=None):
 
     for code in (400, 404, 409, 413, 429):
         app.register_error_handler(code, http_error)
+    for error_type in DatabaseError:
+        app.register_error_handler(error_type, lambda error: ("Database temporarily unavailable. Try again shortly.", 503))
     return app

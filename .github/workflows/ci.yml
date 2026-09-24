@@ -8,6 +8,17 @@ jobs:
   pilot:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: bookingtest
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: bookingtest
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U bookingtest"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -16,3 +27,7 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python -m pip check
       - run: python -m unittest -v
+      - run: python -m unittest -q test_deployment
+        env:
+          TEST_DATABASE_URL: postgresql://bookingtest:local-test-only@127.0.0.1:5432/bookingtest
+      - run: python scripts/build_assets.py
